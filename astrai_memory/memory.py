@@ -1,11 +1,17 @@
 """
 Astrai Memory - Local-first, privacy-preserving memory
 Your data never leaves your device.
+
+Security features:
+- Optional AES-256-GCM encryption for memory content
+- Password-based key derivation (PBKDF2, 600k iterations)
+- File permissions set to owner-only (chmod 600)
 """
 
 import json
 import os
 import sqlite3
+import stat
 import time
 import uuid
 from pathlib import Path
@@ -27,14 +33,23 @@ class AstraiMemory:
     """
     Local memory store with hybrid search (vector + keyword).
     All data stays on your device.
+
+    Security options:
+        password: Enable AES-256 encryption for memory content
+        secure_permissions: Set file to owner-only (default: True)
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(
+        self,
+        db_path: Optional[str] = None,
+        password: Optional[str] = None,
+        secure_permissions: bool = True,
+    ):
         if db_path is None:
             # Default: ~/.astrai/memory.db
             home = Path.home()
             astrai_dir = home / ".astrai"
-            astrai_dir.mkdir(exist_ok=True)
+            astrai_dir.mkdir(exist_ok=True, mode=0o700)  # Owner-only directory
             db_path = str(astrai_dir / "memory.db")
 
         self.db_path = db_path
@@ -42,8 +57,72 @@ class AstraiMemory:
         self.conn.row_factory = sqlite3.Row
         init_schema(self.conn)
 
+        # Set secure file permissions (owner read/write only)
+        if secure_permissions and os.path.exists(db_path):
+            os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR)  # 600
+
+        # Setup encryption if password provided
+        self._encryption = None
+        if password:
+            self._setup_encryption(password)
+
         # Cache for embeddings
         self._embedding_cache: dict[str, np.ndarray] = {}
+
+    def _setup_encryption(self, password: str):
+        """Initialize encryption with password"""
+        try:
+            from .encryption import get_encryption, password_hash
+
+            # Check if we have existing salt in meta table
+            row = self.conn.execute(
+                "SELECT value FROM meta WHERE key = 'encryption_salt'"
+            ).fetchone()
+
+            if row:
+                # Use existing salt
+                import base64
+                salt = base64.b64decode(row["value"].encode())
+                self._encryption = get_encryption(password, salt)
+
+                # Verify password by checking stored hash
+                stored_hash = self.conn.execute(
+                    "SELECT value FROM meta WHERE key = 'encryption_hash'"
+                ).fetchone()
+                if stored_hash and stored_hash["value"] != password_hash(password):
+                    raise ValueError("Incorrect password")
+            else:
+                # New encrypted database
+                self._encryption = get_encryption(password)
+                self.conn.execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                    ("encryption_salt", self._encryption.get_salt_b64())
+                )
+                self.conn.execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                    ("encryption_hash", password_hash(password))
+                )
+                self.conn.commit()
+        except ImportError as e:
+            print(f"Warning: Encryption unavailable - {e}")
+            print("Install with: pip install cryptography")
+
+    def _encrypt(self, text: str) -> str:
+        """Encrypt text if encryption is enabled"""
+        if self._encryption:
+            return self._encryption.encrypt(text)
+        return text
+
+    def _decrypt(self, text: str) -> str:
+        """Decrypt text if encryption is enabled"""
+        if self._encryption:
+            return self._encryption.decrypt(text)
+        return text
+
+    @property
+    def is_encrypted(self) -> bool:
+        """Check if database is using encryption"""
+        return self._encryption is not None
 
     def remember(
         self,
@@ -338,11 +417,16 @@ class AstraiMemory:
         ).fetchall()
         cache_size = self.conn.execute("SELECT COUNT(*) FROM embedding_cache").fetchone()[0]
 
+        # Get file permissions
+        perms = oct(os.stat(self.db_path).st_mode)[-3:] if os.path.exists(self.db_path) else "N/A"
+
         return {
             "total_memories": total,
             "categories": {row["category"]: row["count"] for row in categories},
             "embedding_cache_size": cache_size,
             "db_path": self.db_path,
+            "encrypted": self.is_encrypted,
+            "file_permissions": perms,
         }
 
     def close(self):

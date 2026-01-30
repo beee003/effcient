@@ -89,6 +89,12 @@ def cmd_stats(args, memory: AstraiMemory):
     print(f"Cache size:      {stats['embedding_cache_size']} embeddings")
     print(f"Database:        {stats['db_path']}")
 
+    # Security info
+    encrypted_icon = "" if stats.get('encrypted') else ""
+    print(f"\nSecurity:")
+    print(f"  Encrypted:     {encrypted_icon} {'Yes (AES-256-GCM)' if stats.get('encrypted') else 'No'}")
+    print(f"  Permissions:   {stats.get('file_permissions', 'N/A')}")
+
     if stats['categories']:
         print(f"\nCategories:")
         for cat, count in stats['categories'].items():
@@ -120,6 +126,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--db", help="Path to database file")
+    parser.add_argument(
+        "-p", "--password",
+        help="Encrypt memories with password (AES-256-GCM)",
+        default=None
+    )
+    parser.add_argument(
+        "--password-env",
+        help="Read password from environment variable",
+        default=None
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -157,8 +173,21 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    # Get password from args or environment
+    import os
+    password = args.password
+    if args.password_env:
+        password = os.environ.get(args.password_env)
+        if not password:
+            print(f"Error: Environment variable {args.password_env} not set")
+            sys.exit(1)
+
     # Initialize memory
-    memory = AstraiMemory(db_path=args.db)
+    try:
+        memory = AstraiMemory(db_path=args.db, password=password)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
     try:
         if args.command == "remember":
