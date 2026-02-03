@@ -4,8 +4,8 @@
 # Core (no external deps for SEC fetching - uses stdlib)
 # urllib, json, re are all stdlib
 
-# Optional: Paper trading
-alpaca-trade-api>=3.0.0
+# Paper trading (Alpaca)
+alpaca-py>=0.20.0
 
 # Optional: Market data
 yfinance>=0.2.0

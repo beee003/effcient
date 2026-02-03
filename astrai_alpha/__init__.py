@@ -8,13 +8,15 @@ Components:
 - Signal generator
 - Execution cost model (realistic slippage/spread/impact)
 - Immutable trade ledger (proof engine)
-- Paper/live trading executor
+- Alpaca paper trading gateway (real fills, real latency)
+- Risk gate (position limits, daily loss limits)
 """
 
 from .signals import SignalGenerator
 from .trader import AlphaTrader
 from .execution import ExecutionSimulator, MarketState, ExecutionResult
 from .ledger import TradeLedger, LedgerEntry
+from .alpaca_gateway import AlpacaGateway, RiskLimits, RiskCheckResult
 
 __all__ = [
     "SignalGenerator",
@@ -24,4 +26,7 @@ __all__ = [
     "ExecutionResult",
     "TradeLedger",
     "LedgerEntry",
+    "AlpacaGateway",
+    "RiskLimits",
+    "RiskCheckResult",
 ]
