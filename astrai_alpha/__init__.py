@@ -6,10 +6,22 @@ Components:
 - SEC filing ingestor (10-K, 8-K, earnings calls)
 - Sentiment drift detector
 - Signal generator
+- Execution cost model (realistic slippage/spread/impact)
+- Immutable trade ledger (proof engine)
 - Paper/live trading executor
 """
 
 from .signals import SignalGenerator
 from .trader import AlphaTrader
+from .execution import ExecutionSimulator, MarketState, ExecutionResult
+from .ledger import TradeLedger, LedgerEntry
 
-__all__ = ["SignalGenerator", "AlphaTrader"]
+__all__ = [
+    "SignalGenerator",
+    "AlphaTrader",
+    "ExecutionSimulator",
+    "MarketState",
+    "ExecutionResult",
+    "TradeLedger",
+    "LedgerEntry",
+]
