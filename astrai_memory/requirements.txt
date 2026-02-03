@@ -1,0 +1,16 @@
+# Astrai Memory Module
+# Local-first, privacy-preserving memory for Personal Market Brain
+
+# Core
+sqlite-vec>=0.1.1
+numpy>=1.24.0
+
+# Local embeddings (runs offline, no API calls)
+sentence-transformers>=2.2.0
+
+# Encryption (AES-256-GCM)
+cryptography>=41.0.0
+
+# CLI
+click>=8.1.0
+rich>=13.0.0

@@ -1,0 +1,14 @@
+# Astrai Alpha - AI-Native Hedge Fund Engine
+# Built on Astrai infrastructure
+
+# Core (no external deps for SEC fetching - uses stdlib)
+# urllib, json, re are all stdlib
+
+# Paper trading (Alpaca)
+alpaca-py>=0.20.0
+
+# Optional: Market data
+yfinance>=0.2.0
+
+# Integration with astrai_memory for persistence
+# (uses ../astrai_memory)
